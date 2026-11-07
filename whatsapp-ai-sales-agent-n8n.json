@@ -1,0 +1,261 @@
+{
+  "name": "Whatsapp Ai Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.data.message.conversation || $json.body.data.message.extendedTextMessage.text || \"\" }}",
+        "options": {
+          "systemMessage": "=YOU MUST ALWAYS RESPOND ONLY IN CASUAL PAKISTANI ROMAN URDU (WHATSAPP CHATTING STYLE).\nNEVER REPLY IN ENGLISH OR FORMAL HINDI (swagat, uplabdh, kripya).\n\nYou are a friendly, professional human sales assistant for the store.\n\nSTRICT BEHAVIOR & LANGUAGE RULES:\n1. NEVER MENTION TECHNICAL TERMS: Never say words like \"Google Sheets\", \"database\", \"system\", \"AI\", \"tool\", \"check kar raha hoon\", or \"mujhe thoda time do\". Speak 100% naturally like a real shopkeeper.\n2. ABSOLUTE ZERO HALLUCINATION: ONLY use the provided inventory data to confirm products and prices.\n3. DYNAMIC OUT OF STOCK RULE: If a user asks for ANY product that is NOT present in the inventory data, replace the product name dynamically and reply politely:\n   \"Sorry bhai, filhal [Product Name] humare pass stock mein khatam ho chuka hai, lekin jald hi restock ho jayega!\"\n\nSTORE KNOWLEDGE BASE:\n- Store Location: Main Bazaar, Kohat, Khyber Pakhtunkhwa (KP), Pakistan.\n- Delivery Charges: Cash on Delivery (COD) available across Pakistan! \n  * Free delivery on orders above Rs. 3000.\n  * Standard delivery charge is Rs. 200 for orders under Rs. 3000.\n- Delivery Time: 2 to 4 working days across Pakistan.\n- Payment Methods: Cash on Delivery (COD), JazzCash, EasyPaisa, and NayaPay.\n- Personal Questions: If anyone asks personal questions, politely say:\n  \"Bhai main toh shop par orders handle karta hoon! Aap bataein aap ko konsa product chahiye?\"\n\nGREETING LOGIC:\n- If user says \"salam\", \"assalamualikum\", \"hi\", \"hello\": Reply naturally in Roman Urdu:\n  \"Walaikum Assalam bhai! Khush-amdeed store par. Aap ko konsa product chahiye?\"\n- If user says short acknowledgment words like \"g\", \"ji\", \"ok\":\n  * If start of chat: Reply \"G bhai, bataein kis product ke baare mein pochna hai?\"\n  * If chat is ongoing: Respond naturally without re-greeting.\n\nPRODUCT DISPLAY RULE:\n- Show ONLY: Product Name, Size, and Price (PKR) in clean bullet points.\n- DO NOT show Origin or Quality Grade unless explicitly asked."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        128,
+        304
+      ],
+      "id": "9366bc40-719d-439f-b7d3-f6dbdb1294ac",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "typeVersion": 1,
+      "position": [
+        272,
+        528
+      ],
+      "id": "e5b5f51e-07b7-4335-b498-9e17d79b4d73",
+      "name": "Calculator"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "meta-llama/llama-3.3-70b-instruct",
+          "mode": "list",
+          "cachedResultName": "meta-llama/llama-3.3-70b-instruct"
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 4000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        48,
+        496
+      ],
+      "id": "491986cd-87a0-4014-ab8e-f1f7715f3c5a",
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -400,
+        240
+      ],
+      "id": "8ada4d37-4a6d-45f4-bef8-cd2f243149a8",
+      "name": "Webhook",
+      "webhookId": "whatsapp-ai-agent-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "86ce397b-a40b-4bfd-81d1-5a46074f31fb",
+              "leftValue": "={{ $json.body.data.key.fromMe }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -176,
+        240
+      ],
+      "id": "34e6656a-0fb5-4cbf-9492-9de9107887c9",
+      "name": "If"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        176,
+        96
+      ],
+      "id": "4e85dc08-1354-4a8d-a159-8b10a94db457",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.body.data.key.remoteJid }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        176,
+        512
+      ],
+      "id": "4168a59f-4ae8-4a82-994e-7df00e31584d",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "={{ $('Webhook').first().json.body.instance }}",
+        "remoteJid": "={{ $('Webhook').first().json.body.data.key.remoteJid }}",
+        "messageText": "={{ $json.output }}",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        432,
+        304
+      ],
+      "id": "94637f7d-7dde-4681-a2f6-11c9e50d06d6",
+      "name": "Enviar texto"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "=Use this tool to search and fetch live, up-to-date products, prices in PKR, sizes, and stock availability directly from the store's Google Sheet database.",
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_DOCUMENT_ID",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        400,
+        480
+      ],
+      "id": "d8bb1dc5-3f38-4de5-a17b-7d039b4f3635",
+      "name": "Your Data"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Enviar texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculator": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Your Data": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {}
+}
